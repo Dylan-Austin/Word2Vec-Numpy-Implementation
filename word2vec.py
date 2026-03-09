@@ -2,15 +2,15 @@ from numpy import ndarray
 import numpy as np
 
 def sigmoid(x: ndarray) -> ndarray:
-    return np.reciprocal(np.logaddexp(0, -x))
+    return 1 / (1 + np.exp(-np.clip(x, -500, 500)))
 
 class SG_Word2Vec(): # Skip gram
     def __init__(self, vocabulary_size: int, d_embedding: int) -> None:
-        self.input_embeddings = np.random.randn(vocabulary_size, d_embedding)
-        self.output_embeddings = np.random.randn(vocabulary_size, d_embedding)
-    
-    # center_word : (batch, 1), positive_context : (batch, 1), negative_samples : (batch, neg_samples)
-    def training_step(self, center_word: ndarray, positive_context: ndarray, negative_samples: ndarray, lr: float) -> ndarray:
+        self.input_embeddings = np.random.randn(vocabulary_size, d_embedding) * 0.01
+        self.output_embeddings = np.random.randn(vocabulary_size, d_embedding) * 0.01
+
+    # expects (batch, 1), (batch, 1), (batch, neg_samples)
+    def training_step(self, center_word: ndarray, positive_context: ndarray, negative_samples: ndarray, lr: float) -> float:
         center_embedding = self.input_embeddings[center_word]
         
         positive_embedding = self.output_embeddings[positive_context]   
@@ -23,10 +23,10 @@ class SG_Word2Vec(): # Skip gram
         positive_logit = logits[:, 0]
         negative_logits = logits[:, 1:]
 
-        # backprop step
         positive_loss = np.logaddexp(0, -positive_logit)
         negative_loss = np.sum(np.logaddexp(0, negative_logits), axis=-1)
-        
+
+        # backprop step
         positive_loss_gradient = (sigmoid(positive_logit) - 1).reshape(-1, 1, 1)
         negative_loss_gradient = np.expand_dims(sigmoid(negative_logits), -1)
 
@@ -47,13 +47,3 @@ class SG_Word2Vec(): # Skip gram
         loss = np.mean(batch_loss)
 
         return loss
-
-if __name__ == "__main__":
-    w2v = SG_Word2Vec(1000, 300)
-
-    center_word = np.array([[2], [5], [5], [2]])
-    positive_context = np.array([[7], [43], [12], [4]])
-    negative_samples = np.array([[5, 3, 2], [5, 6, 7], [4, 3, 2], [9, 8, 1]])
-
-    loss = w2v.training_step(center_word, positive_context, negative_samples, 0.01)
-    print(loss)
